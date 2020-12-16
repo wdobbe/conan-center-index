@@ -1,0 +1,8 @@
+sources:
+  "1.2.4d":
+    sha256: 0d6887e732458876ef576f26645df62e1acf5e2f3df59d0e5a370ce53d9e7dbd
+    url: https://bitbucket.org/tjec/log4c/downloads/log4c-1.2.4d.tar.gz
+patches:
+  "1.2.4d":
+    - base_path: "source_subfolder"
+      patch_file: "patches/0001-fix_format_security_warning.patch"
