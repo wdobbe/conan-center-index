@@ -14,6 +14,7 @@ from conan.tools.gnu import PkgConfigDeps
 from conan.tools.microsoft import msvc_runtime_flag, is_msvc
 from conan.tools.scm import Version
 from conan.errors import ConanException, ConanInvalidConfiguration
+import shutil
 
 required_conan_version = ">=1.55.0"
 
@@ -344,8 +345,8 @@ class QtConan(ConanFile):
         if self.options.get_safe("qtwayland", False) and not self.dependencies.direct_host["xkbcommon"].options.with_wayland:
             raise ConanInvalidConfiguration("The 'with_wayland' option for the 'xkbcommon' package must be enabled when the 'qtwayland' option is enabled")
 
-        if cross_building(self):
-            raise ConanInvalidConfiguration("cross compiling qt 6 is not yet supported. Contributions are welcome")
+        if cross_building(self) and self.settings.os != "Linux":
+            raise ConanInvalidConfiguration("cross compiling qt 6 is only supported on Linux. Contributions are welcome.")
 
         if self.options.with_sqlite3 and not self.dependencies["sqlite3"].options.enable_column_metadata:
             raise ConanInvalidConfiguration("sqlite3 option enable_column_metadata must be enabled for qt")
@@ -836,7 +837,7 @@ class QtConan(ConanFile):
             save(self, ".qmake.stash", "")
             save(self, ".qmake.super", "")
         cmake = CMake(self)
-        cmake.configure()
+        cmake.configure(cli_args=["-Wno-dev"])
         cmake.build()
 
     @property
@@ -880,6 +881,13 @@ class QtConan(ConanFile):
 
             rmdir(self, os.path.join(self.package_folder, "lib", "cmake", m))
 
+        deps = self.dependencies.items()
+        build_deps = self.dependencies.build.items()
+        print(f"  +++++++++ deps: " + str(deps))
+        print("   +++++++++ build_deps: " + str(build_deps))
+        if cross_building(self):
+            build_qt_package = self.dependencies.build["qt"]
+            print(" *************** qt build package: " + build_qt_package.package_folder)
         extension = ""
         if self.settings.os == "Windows":
             extension = ".exe"
@@ -890,7 +898,29 @@ class QtConan(ConanFile):
         filecontents += f"set(QT_VERSION_PATCH {ver.patch})\n"
         if self.settings.os == "Macos":
             filecontents += 'set(__qt_internal_cmake_apple_support_files_path "${CMAKE_CURRENT_LIST_DIR}/../../../lib/cmake/Qt6/macos")\n'
+        #targets = ["qmake"]
+        if cross_building(self):
+            build_qt_package_folder = self.dependencies.build["qt"].package_folder
+            shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'moc'), os.path.join(self.package_folder, 'libexec'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'rcc'), os.path.join(self.package_folder, 'libexec'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'tracegen'), os.path.join(self.package_folder, 'libexec'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'cmake_automoc_parser'), os.path.join(self.package_folder, 'libexec'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'qlalr'), os.path.join(self.package_folder, 'libexec'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'qhelpgenerator'), os.path.join(self.package_folder, 'libexec'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'qtattributionsscanner'), os.path.join(self.package_folder, 'libexec'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'lrelease-pro'), os.path.join(self.package_folder, 'libexec'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'lupdate-pro'), os.path.join(self.package_folder, 'libexec'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'lprodump'), os.path.join(self.package_folder, 'libexec'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'bin', 'lconvert'), os.path.join(self.package_folder, 'bin'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'bin', 'lrelease'), os.path.join(self.package_folder, 'bin'))
+            shutil.copy(os.path.join(build_qt_package_folder, 'bin', 'lupdate'), os.path.join(self.package_folder, 'bin'))
+            if self.options.widgets:
+                shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'uic'), os.path.join(self.package_folder, 'libexec'))
+            if self.options.gui:
+                shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'qvkgen'), os.path.join(self.package_folder, 'libexec'))
         targets = ["moc", "rcc", "tracegen", "cmake_automoc_parser", "qlalr", "qmake"]
+        #if not cross_building(self):
+        #    targets.extend(["moc", "rcc", "tracegen", "cmake_automoc_parser", "qlalr"])
         if self.options.with_dbus:
             targets.extend(["qdbuscpp2xml", "qdbusxml2cpp"])
         if self.options.gui:
@@ -903,12 +933,14 @@ class QtConan(ConanFile):
             targets.extend(["windeployqt"])
         if self.options.qttools:
             targets.extend(["qhelpgenerator", "qtattributionsscanner"])
-            targets.extend(["lconvert", "lprodump", "lrelease", "lrelease-pro", "lupdate", "lupdate-pro"])
-        if self.options.qtshadertools:
+            #targets.extend(["lconvert", "lprodump", "lrelease", "lrelease-pro", "lupdate", "lupdate-pro"])
+        if self.options.qtshadertools and not cross_building(self):
             targets.append("qsb")
         if self.options.qtdeclarative:
-            targets.extend(["qmltyperegistrar", "qmlcachegen", "qmllint", "qmlimportscanner"])
-            targets.extend(["qmlformat", "qml", "qmlprofiler", "qmlpreview"])
+            targets.extend(["qml", "qmlpreview"])
+            if not cross_building(self):
+                targets.extend(["qmltyperegistrar", "qmlcachegen", "qmllint", "qmlimportscanner"])
+                targets.extend(["qmlformat", "qmlprofiler"])
             # Note: consider "qmltestrunner", see https://github.com/conan-io/conan-center-index/issues/24276
         if self.options.get_safe("qtremoteobjects"):
             targets.append("repc")
