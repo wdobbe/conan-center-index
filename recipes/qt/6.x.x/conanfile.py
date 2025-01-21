@@ -677,6 +677,17 @@ class QtConan(ConanFile):
         tc.cache_variables["QT_USE_VCPKG"] = False
 
         tc.generate()
+        
+        if cross_building(self):
+            #Some shared libraries that Qt::gui is linked to are not found when linking executables that use Qt::gui
+            toolchain_file = os.path.join(self.generators_folder, "conan_toolchain.cmake")
+            with open(toolchain_file, 'a') as f:
+                f.write('set(DEP_LIB_DIRS_PATHS "")\n')
+                f.write('FOREACH(CONAN_RUNTIME_LIBDIR ${CONAN_RUNTIME_LIB_DIRS})\n')
+                f.write('    string(APPEND DEP_LIB_DIRS_PATHS "${CONAN_RUNTIME_LIBDIR}:")\n')
+                f.write('ENDFOREACH()\n')
+                f.write('set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath-link,${DEP_LIB_DIRS_PATHS}")\n')
+
 
     def package_id(self):
         del self.info.options.cross_compile
@@ -880,14 +891,8 @@ class QtConan(ConanFile):
                     continue
 
             rmdir(self, os.path.join(self.package_folder, "lib", "cmake", m))
+            print("Removing %s" % os.path.join(self.package_folder, "lib", "cmake", m))
 
-        deps = self.dependencies.items()
-        build_deps = self.dependencies.build.items()
-        print(f"  +++++++++ deps: " + str(deps))
-        print("   +++++++++ build_deps: " + str(build_deps))
-        if cross_building(self):
-            build_qt_package = self.dependencies.build["qt"]
-            print(" *************** qt build package: " + build_qt_package.package_folder)
         extension = ""
         if self.settings.os == "Windows":
             extension = ".exe"
@@ -898,7 +903,6 @@ class QtConan(ConanFile):
         filecontents += f"set(QT_VERSION_PATCH {ver.patch})\n"
         if self.settings.os == "Macos":
             filecontents += 'set(__qt_internal_cmake_apple_support_files_path "${CMAKE_CURRENT_LIST_DIR}/../../../lib/cmake/Qt6/macos")\n'
-        #targets = ["qmake"]
         if cross_building(self):
             build_qt_package_folder = self.dependencies.build["qt"].package_folder
             shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'moc'), os.path.join(self.package_folder, 'libexec'))
@@ -919,8 +923,6 @@ class QtConan(ConanFile):
             if self.options.gui:
                 shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'qvkgen'), os.path.join(self.package_folder, 'libexec'))
         targets = ["moc", "rcc", "tracegen", "cmake_automoc_parser", "qlalr", "qmake"]
-        #if not cross_building(self):
-        #    targets.extend(["moc", "rcc", "tracegen", "cmake_automoc_parser", "qlalr"])
         if self.options.with_dbus:
             targets.extend(["qdbuscpp2xml", "qdbusxml2cpp"])
         if self.options.gui:
@@ -933,7 +935,7 @@ class QtConan(ConanFile):
             targets.extend(["windeployqt"])
         if self.options.qttools:
             targets.extend(["qhelpgenerator", "qtattributionsscanner"])
-            #targets.extend(["lconvert", "lprodump", "lrelease", "lrelease-pro", "lupdate", "lupdate-pro"])
+            targets.extend(["lconvert", "lprodump", "lrelease", "lrelease-pro", "lupdate", "lupdate-pro"])
         if self.options.qtshadertools and not cross_building(self):
             targets.append("qsb")
         if self.options.qtdeclarative:
