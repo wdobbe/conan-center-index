@@ -71,6 +71,12 @@ patches:
       "patch_file": "patches/c72097e_6.6.0.diff"
       "patch_source": "https://codereview.qt-project.org/c/yocto/meta-qt5/+/192172"
       "patch_type": "bugfix"
+  "6.7.3":
+    - "base_path": "qtbase/src/corelib/io"
+      "patch_description": "statx.st.stx_mnt_id is not available on all platforms"
+      "patch_file": "patches/mount_id_for_path.patch"
+      "patch_source": "n.a."
+      "patch_type": "bugfix"
   "6.6.3":
     - "base_path": "qtwebengine"
       "patch_description": "Workaround for too long .rps file name"

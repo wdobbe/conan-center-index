@@ -1,0 +1,18 @@
+--- qstorageinfo_linux.cpp.org  2025-01-23 19:25:45.711441804 +0100
++++ qstorageinfo_linux.cpp      2025-01-23 19:27:52.699168679 +0100
+@@ -101,15 +101,6 @@
+ 
+ static inline quint64 mountIdForPath(int fd)
+ {
+-    if (fd < 0)
+-        return 0;
+-#if defined(STATX_BASIC_STATS) && defined(STATX_MNT_ID)
+-    // STATX_MNT_ID was added in kernel v5.8
+-    struct statx st;
+-    int r = statx(fd, "", AT_EMPTY_PATH | AT_NO_AUTOMOUNT, STATX_MNT_ID, &st);
+-    if (r == 0 && (st.stx_mask & STATX_MNT_ID))
+-        return st.stx_mnt_id;
+-#endif
+     return 0;
+ }
+

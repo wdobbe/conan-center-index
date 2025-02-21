@@ -688,7 +688,6 @@ class QtConan(ConanFile):
                 f.write('ENDFOREACH()\n')
                 f.write('set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath-link,${DEP_LIB_DIRS_PATHS}")\n')
 
-
     def package_id(self):
         del self.info.options.cross_compile
         del self.info.options.sysroot
@@ -922,6 +921,9 @@ class QtConan(ConanFile):
                 shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'uic'), os.path.join(self.package_folder, 'libexec'))
             if self.options.gui:
                 shutil.copy(os.path.join(build_qt_package_folder, 'libexec', 'qvkgen'), os.path.join(self.package_folder, 'libexec'))
+            if self.options.qttranslations:
+                shutil.copytree(os.path.join(build_qt_package_folder, 'lib', 'cmake', 'Qt6LinguistTools'), os.path.join(self.package_folder, 'lib', 'cmake'))
+
         targets = ["moc", "rcc", "tracegen", "cmake_automoc_parser", "qlalr", "qmake"]
         if self.options.with_dbus:
             targets.extend(["qdbuscpp2xml", "qdbusxml2cpp"])
